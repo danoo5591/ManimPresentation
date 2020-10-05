@@ -477,41 +477,82 @@ class MainPresentation(MovingCameraScene):
 
 
     def show_opinions_example(self):
-        background = ImageMobject("img/celular_opinions.png")
+        background_rect = ScreenRectangle()
+        background_rect.set_fill(WHITE, 1)
+        background_rect.set_width(FRAME_WIDTH*1.2)
+        background_rect.set_height(FRAME_HEIGHT*1.2)
+        background = ImageMobject("img/opinion_photo.png")
         background.set_height(FRAME_HEIGHT)
-        # self.play(FadeIn(background))
-        opinion_rect = Rectangle(height=2.2, width=4.75)
+        self.play(FadeIn(background_rect), FadeIn(background))
+        self.wait()
+        
+        opinion_rect = Rectangle(height=2.5, width=5.6)
         opinion_rect.set_color(BLUE_E)
-        opinion_rect.set_stroke(width=1)
-        opinion_rect.move_to(1.5*UP)
+        opinion_rect.move_to(1.10*UP + 0.1*RIGHT)
+        opinion = TextMobject("Opinión")
+        opinion.next_to(opinion_rect, 0.09*UP)
+        opinion.set_color(BLUE_E)
+        opinion.scale(0.6)
 
-        sentiment_rect = Rectangle(height=1.95, width=2.4)
+        sentiment_rect = Rectangle(height=2.2, width=2.7)
         sentiment_rect.set_color(YELLOW_E)
-        sentiment_rect.set_stroke(width=1)
-        sentiment_rect.move_to(2.8*UP + 4.5*LEFT)
+        sentiment_rect.move_to(2.7*UP + 5.3*LEFT)
 
-        absa_rect = Rectangle(height=1.8, width=2.5)
-        absa_rect.set_color(BLACK)
-        absa_rect.set_stroke(width=1)
-        absa_rect.move_to(0.7*UP + 4.35*LEFT)
+        absa_rect = Rectangle(height=2.3, width=3)
+        absa_rect.set_color(GREEN)
+        absa_rect.move_to(5.15*LEFT)
 
-        absa_rect = Rectangle(height=1.8, width=2.5)
-        absa_rect.set_color(BLACK)
-        absa_rect.set_stroke(width=1)
-        absa_rect.move_to(0.7*UP + 4.35*LEFT)
+        all_rect = Rectangle(height=5.1, width=9.9)
+        all_rect.set_color(BLACK)
+        all_rect.move_to(1.35*UP + 1.9*LEFT)
 
+        rects = VGroup(opinion_rect, sentiment_rect, absa_rect, all_rect)
+        rects.set_stroke(width=2)
         
-        # pw = page.get_width()
-        # opinion_rect.set_color_by_gradient([BLUE_D, BLUE_E, BLUE_A])
-        #rect.set_width(pw * 0.35)
-        #factor = 0.16
-        #rect.set_height(factor * pw, stretch=True)
-        #rect.move_to(page)
-        #rect.shift(0.09 * pw * DOWN)
-        
-        self.add(background, opinion_rect, sentiment_rect, absa_rect)
-        self.wait(1)
+        big_rects = VGroup()
+        for rect in rects:
+            big_rect = FullScreenFadeRectangle(height=FRAME_HEIGHT*1.2, width=FRAME_WIDTH*1.2)
+            rect.reverse_points()
+            big_rect.append_vectorized_mobject(rect)
+            big_rects.add(big_rect)
 
+
+        self.play(Write(opinion), ShowCreation(rects[0]))
+
+        self.camera_frame.save_state()
+        saved_frame = self.camera_frame
+
+        frame = self.camera_frame
+        frame.generate_target()
+        frame.target.scale(0.4)
+        frame.target.move_to(rects[0])
+        big_rect = big_rects[0].copy()
+
+        self.play(
+            FadeIn(big_rect),
+            MoveToTarget(frame, run_time=3),
+        )
+        self.wait()
+        
+        self.play(Restore(saved_frame))
+
+        frame = saved_frame
+        frame.generate_target()
+        frame.target.scale(0.72)
+        frame.target.move_to(rects[3])
+
+        self.play(
+            ShowCreation(rects[1]),
+            ShowCreation(rects[2]),
+            MoveToTarget(frame, run_time=3),
+            Transform(big_rect, big_rects[3]),
+        )
+
+        self.wait()
+
+        self.play(FadeOut(big_rect), Restore(saved_frame))
+        
+        self.wait()
 
 
 
