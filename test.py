@@ -320,15 +320,36 @@ class underline(Line):
         self.shift(DOWN*buff)
 
 
+
+class Test(MovingCameraScene):
+    def construct(self):
+        step1 = TextMobject("Step 1")
+        step2 = TextMobject("Step 2")
+        step1.move_to(LEFT*2+DOWN*2)
+        step2.move_to(4*RIGHT+2*UP)
+        arrow1 = Arrow(step1.get_right(),step2.get_left(),buff=0.1)
+        arrow1.set_color(RED)
+        arrow2 = Arrow(step1.get_top(),step2.get_bottom(),buff=0.1)
+        arrow2.set_color(BLUE)
+        self.play(Write(step1),Write(step2))
+        self.play(GrowArrow(arrow1))
+        self.play(GrowArrow(arrow2))
+        self.wait()
+
+
 class MainPresentation(MovingCameraScene):
     def construct(self):
         # self.show_quote()
         # self.remove_all_obj_in_scene()
         # self.show_title()
         # self.introduction()
+        # self.remove_all_obj_in_scene()
         # self.show_amazon_example()
         # self.remove_all_obj_in_scene()
-        self.show_opinions_example()
+        # self.show_opinions_example()
+        # self.remove_all_obj_in_scene()
+        # self.show_def_opinion()
+        # self.remove_all_obj_in_scene()
 
     def remove_all_obj_in_scene(self):
         self.play(
@@ -387,8 +408,8 @@ class MainPresentation(MovingCameraScene):
                 FadeIn(autor),
                 FadeIn(instituto),
                 FadeIn(grupo),
-                run_time=3)
-            self.wait(5)
+                run_time=2)
+            self.wait(1)
             self.play(
                 FadeOut(universidad),
                 FadeOut(facultad),
@@ -400,18 +421,15 @@ class MainPresentation(MovingCameraScene):
             self.wait(2)
     
     def introduction(self):
-            question_1 = TextMobject('¿Que entendemos por "Opinion"?')
+            question_1 = TextMobject('¿Que entendemos por ','"', 'Opinión', '"?')
+            question_2 = TextMobject('¿Como definimos la "', 'Opinion', r'" de forma en que \\ una computadora lo entienda?')
+            question_2[1].set_color(YELLOW)
             self.play(Write(question_1))
+            self.play(question_1[2].set_color, YELLOW)
             self.wait()
-            text1 = TextMobject("This is a bouncing ball")
-            text2 = TextMobject("Enjoy watching!")
-            self.wait(1)
-            self.play(FadeOut(question_1), FadeIn(text1))
 
-            self.wait(2)
-            self.play(Transform(text1, text2))
-
-            self.wait(10)
+            self.play(ReplacementTransform(question_1, question_2))
+            self.wait(3)
 
 
     def show_amazon_example(self):
@@ -494,13 +512,82 @@ class MainPresentation(MovingCameraScene):
         opinion.set_color(BLUE_E)
         opinion.scale(0.6)
 
+        # Entity inside Opinion Rectangle
+        LINE_POSITION = 0.535*DOWN
+        
+        aspect_positive_rect = RoundedRectangle(width=1.485,height=0.23,corner_radius=0.05,stroke_width=0.7,color=GREEN_D,fill_color=GREEN_A,fill_opacity=0.25)
+        aspect_positive_rect.move_to(opinion_rect)
+        aspect_positive_rect.shift(LINE_POSITION + 1.4*LEFT)
+
+        aspect_positive = TextMobject("Positiva")
+        aspect_positive.set_stroke(width=1)
+        aspect_positive.next_to(aspect_positive_rect, 0.001*DOWN)
+        aspect_positive.set_color(GREEN_D)
+        aspect_positive.scale(0.4)
+
+        aspect_negative_rect = RoundedRectangle(width=1.665,height=0.23,corner_radius=0.05,stroke_width=0.7,color=RED_D,fill_color=RED_A,fill_opacity=0.25)
+        aspect_negative_rect.move_to(opinion_rect)
+        aspect_negative_rect.shift(LINE_POSITION + 0.46*RIGHT)
+
+        aspect_negative = TextMobject("Negativa")
+        aspect_negative.set_stroke(width=1)
+        aspect_negative.next_to(aspect_negative_rect, 0.0001*DOWN)
+        aspect_negative.set_color(RED_D)
+        aspect_negative.scale(0.4)
+
+
+        author = Line(0.45*LEFT, 0.45*RIGHT)
+        author.set_color(GREY_BROWN)
+        author.set_stroke(width=1.5)
+        author.move_to(opinion_rect)
+        author.shift(0.2*UP + 1.88*LEFT)
+
+        author_txt = TextMobject("Autor")
+        author_txt.next_to(author)
+        author_txt.shift(0.65*LEFT + 0.1*UP)
+        author_txt.set_color(GREY_BROWN)
+        author_txt.scale(0.3)
+
+        time = Line(0.5*LEFT, 0.85*RIGHT)
+        time.set_color(GREY_BROWN)
+        time.set_stroke(width=1.5)
+        time.move_to(opinion_rect)
+        time.shift(0.22*DOWN + 0.37*LEFT)
+
+        time_txt = TextMobject("Tiempo")
+        time_txt.next_to(time)
+        time_txt.shift(0.82*LEFT + 0.08*UP)
+        time_txt.set_color(GREY_BROWN)
+        time_txt.scale(0.3)
+  
+        #End
+
+        SENTIMENT_COLOR = YELLOW_E
+
         sentiment_rect = Rectangle(height=2.2, width=2.7)
-        sentiment_rect.set_color(YELLOW_E)
+        sentiment_rect.set_color(SENTIMENT_COLOR)
         sentiment_rect.move_to(2.7*UP + 5.3*LEFT)
 
+        sentiment = TextMobject("Análisis de sentimientos")
+        sentiment.next_to(sentiment_rect, 8.5*RIGHT)
+        sentiment.shift(0.7*UP)
+        sentiment.set_color(SENTIMENT_COLOR)
+        sentiment.scale(0.6)
+
+        sentiment_arrow = Arrow(sentiment_rect.get_right(),sentiment.get_left(), tip_length=0.15,buff=SMALL_BUFF)
+        sentiment_arrow.set_stroke(width=1.4)
+        # sentiment_arrow.scale(0.3)
+        sentiment_arrow.set_color(SENTIMENT_COLOR)
+
         absa_rect = Rectangle(height=2.3, width=3)
-        absa_rect.set_color(GREEN)
+        absa_rect.set_color(SENTIMENT_COLOR)
         absa_rect.move_to(5.15*LEFT)
+
+        absa = TextMobject("Análisis de sentimientos basado en aspectos")
+        absa.set_stroke(width=1)
+        absa.next_to(absa_rect, 0.005*UP)
+        absa.set_color(SENTIMENT_COLOR)
+        absa.scale(0.34)
 
         all_rect = Rectangle(height=5.1, width=9.9)
         all_rect.set_color(BLACK)
@@ -533,6 +620,16 @@ class MainPresentation(MovingCameraScene):
             MoveToTarget(frame, run_time=3),
         )
         self.wait()
+
+        # Display de autor y tiempo
+
+        self.play(ShowCreation(author), Write(author_txt))
+        self.play(ShowCreation(time), Write(time_txt))
+        
+        # Display de aspectos
+        self.play(Write(aspect_positive), ShowCreation(aspect_positive_rect))
+        self.play(Write(aspect_negative), ShowCreation(aspect_negative_rect))
+        self.wait()
         
         self.play(Restore(saved_frame))
 
@@ -542,17 +639,134 @@ class MainPresentation(MovingCameraScene):
         frame.target.move_to(rects[3])
 
         self.play(
+            # Write(sentiment),
+            # Write(absa),
             ShowCreation(rects[1]),
-            ShowCreation(rects[2]),
+            # ShowCreation(rects[2]),
             MoveToTarget(frame, run_time=3),
             Transform(big_rect, big_rects[3]),
         )
 
+        self.play(Write(sentiment), GrowArrow(sentiment_arrow))
         self.wait()
 
+        self.play(Write(absa), ShowCreation(rects[2]))
+        self.wait(2)
+
         self.play(FadeOut(big_rect), Restore(saved_frame))
+        self.wait()
+
+
+    def show_def_opinion(self):
+        opinion=TexMobject(
+            "(",
+            "\\texttt{entidad}",
+            ",",
+            "\\texttt{aspecto}",
+            ",",
+            "\\texttt{polaridad}",
+            ")",
+            ",",
+            "\\texttt{autor}",
+            ",",
+            "\\texttt{tiempo}",
+            ")",
+        )
+        opinion.scale(1.2)
+        # opinion[1].set_color(BLUE)
+        # opinion[3].set_color(GOLD)
+        self.play(Write(opinion[:6]),Write(opinion[7:]))
+
+        entity_brace = Brace(opinion[1], UP, buff = SMALL_BUFF).set_color(BLUE)
+        aspect_brace = Brace(opinion[3], UP, buff = SMALL_BUFF).set_color(GOLD)
+
+        polarity_brace = Brace(opinion[5], UP, buff = SMALL_BUFF).set_color(GREEN)
+        holder_brace = Brace(opinion[8], UP, buff = SMALL_BUFF)
+        time_brace = Brace(opinion[10], UP, buff = SMALL_BUFF)
+
+        entity_text = entity_brace.get_text("objeto de estudio")
+        aspect_text = aspect_brace.get_text("caracteristica del objeto")
+
+        polarity_text = polarity_brace.get_text("valoracion del autor")
+        holder_text = holder_brace.get_text("el que expresa la opinion")
+        time_text = time_brace.get_text(r"tiempo de ingreso \\ al sistema")
+
+        self.play(
+            opinion[1].set_color, BLUE,
+            GrowFromCenter(entity_brace),
+            FadeIn(entity_text),
+            )
+        self.wait()
+
+        self.play(
+            opinion[3].set_color, GOLD,
+        	ReplacementTransform(entity_brace,aspect_brace),
+        	ReplacementTransform(entity_text,aspect_text)
+        	)
+        self.wait()
+
+        self.play(
+            opinion[5].set_color, GREEN,
+        	ReplacementTransform(aspect_brace,polarity_brace),
+        	ReplacementTransform(aspect_text,polarity_text)
+        	)
+        self.wait()
+
+        self.play(
+        	ReplacementTransform(polarity_brace,holder_brace),
+        	ReplacementTransform(polarity_text,holder_text)
+        	)
+        self.wait()
+
+        self.play(
+        	ReplacementTransform(holder_brace,time_brace),
+        	ReplacementTransform(holder_text,time_text)
+        	)
+        self.wait()
+
+        self.play(FadeOut(time_brace), FadeOut(time_text))
+        self.play(ReplacementTransform(opinion[7:], opinion[6]), run_time=1)
+        self.play(LaggedStart(ApplyMethod(opinion[:7].shift, 2*RIGHT)), run_time=1)
+
+        def_opinion_title=TextMobject("\\sc Definición de Opinión").scale(1.2).move_to(opinion[:7]).shift(UP)
+        ul_def_opinion_title=underline(def_opinion_title)
         
         self.wait()
+
+        self.play(
+            Write(def_opinion_title),
+            GrowFromCenter(ul_def_opinion_title),
+        )
+        self.wait()
+
+        op_group = VGroup(def_opinion_title, ul_def_opinion_title, opinion[:7])
+
+        self.play(op_group.to_edge, 0.8*UP)
+
+        self.wait()
+
+        def_obj_title=TextMobject("\\sc Objetivo").scale(1.2).next_to(op_group, 5*DOWN)
+        ul_def_obj_title=underline(def_obj_title)
+
+        obj_text = TextMobject("Recuperar las opiniones en los textos.").next_to(def_obj_title, 1.5*DOWN)
+
+        def_sol_title=TextMobject("\\sc Solucion Propuesta").scale(1.2).next_to(obj_text, 5.5*DOWN)
+        ul_def_sol_title=underline(def_sol_title)
+
+        sol_text = TextMobject('Utilizar "Metodos de Aprendizaje Automatico".').next_to(def_sol_title, 1.5*DOWN)
+
+        self.play(
+            Write(def_obj_title),
+            GrowFromCenter(ul_def_obj_title),
+        )
+        self.play(Write(obj_text))
+        self.play(
+            Write(def_sol_title),
+            GrowFromCenter(ul_def_sol_title),
+        )
+        self.play(Write(sol_text))
+        self.wait()
+
 
 
 

@@ -1,5 +1,16 @@
 #!/usr/bin/env python
 
+import numpy as np
+import itertools as it
+import operator as op
+import sys
+import inspect
+from PIL import Image
+import cv2
+import random
+from scipy.spatial.distance import cdist
+from scipy import ndimage
+
 from manimlib.imports import *
 
 # To watch one of these scenes, run the following:
@@ -80,23 +91,81 @@ from manimlib.imports import *
 
 """
 
+class NewtonVsJohann(Scene):
+    def construct(self):
+        newton, johann = [
+            ImageMobject(name, invert = False).scale(0.5)
+            for name in ("Newton", "Johann_Bernoulli2")
+        ]
+        greater_than = TexMobject(">")
+        newton.next_to(greater_than, RIGHT)
+        johann.next_to(greater_than, LEFT)
+        self.add(johann, greater_than, newton)
+        for i in range(2):
+            kwargs = {
+                "path_func" : counterclockwise_path(),
+                "run_time"  : 2 
+            }
+            self.play(
+                ApplyMethod(newton.replace, johann, **kwargs),
+                ApplyMethod(johann.replace, newton, **kwargs),
+            )
+            self.wait()
+
+class MultipleDefinitionsOfAnEllipse(Scene):
+    def construct(self):
+        title = Title("Multiple definitions of ``ellipse''")
+        self.add(title)
+
+        definitions = VGroup(
+            TextMobject("1. Stretch a circle"),
+            TextMobject("2. Thumbtack \\\\ \\quad\\, construction"),
+            TextMobject("3. Slice a cone"),
+        )
+        definitions.arrange(
+            DOWN, buff=LARGE_BUFF,
+            aligned_edge=LEFT
+        )
+        definitions.next_to(title, DOWN, LARGE_BUFF)
+        definitions.to_edge(LEFT)
+
+        for definition in definitions:
+            definition.saved_state = definition.copy()
+            definition.saved_state.set_fill(LIGHT_GREY, 0.5)
+
+        self.play(LaggedStartMap(
+            FadeInFrom, definitions,
+            lambda m: (m, RIGHT),
+            run_time=4
+        ))
+        self.wait()
+        for definition in definitions:
+            others = [d for d in definitions if d is not definition]
+            self.play(
+                definition.set_fill, WHITE, 1,
+                definition.scale, 1.2, {"about_edge": LEFT},
+                *list(map(Restore, others))
+            )
+            self.wait(2)
+
 class MainPresentation(Scene):
     def construct(self):
-            title = TextMobject(r"\textsc{Analísis de opiniones a nivel de aspectos}")
+            title = TextMobject(r"\textsc{Analísis de }", r"\textsc{opiniones}", r"\textsc{ a nivel de aspectos}")
+            title.set_color_by_tex("opiniones", YELLOW)
             title.scale(1.2)
             self.play(Write(title))
-            self.wait(0.2)
+            self.wait()
+            opinion_title = title.get_part_by_tex("opiniones").copy()
             self.play(
-                title.set_color, BLUE,
+                FadeOut(title),
+                opinion_title.to_edge, UP,
+                opinion_title.set_color, WHITE,
                 run_time=0.6
             )
-            self.wait(0.5)
-            self.play(
-                title.to_edge, UP,
-                title.scale, 0.8,
-                title.set_color, WHITE,
-                run_time=0.6
-            )
+            self.wait(1.2)
+            question = TextMobject("Como definimos las opiniones?")
+            self.play(Write(question))
+            self.wait()
         
 
 class OpeningManimExample(Scene):
