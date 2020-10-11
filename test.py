@@ -317,6 +317,235 @@ def mueve_seleccion(self,rectg,objeto,**kwargs):
 # for a 1920x1080 video)
 
 
+class NetworkMobject(VGroup):
+    CONFIG = {
+        "neuron_radius" : 0.15,
+        "neuron_to_neuron_buff" : MED_SMALL_BUFF,
+        "layer_to_layer_buff" : LARGE_BUFF,
+        "neuron_stroke_color" : BLUE,
+        "neuron_stroke_width" : 3,
+        "neuron_fill_color" : GREEN,
+        "edge_color" : LIGHT_GREY,
+        "edge_stroke_width" : 2,
+        "edge_propogation_color" : YELLOW,
+        "edge_propogation_time" : 1,
+        "max_shown_neurons" : 16,
+        "brace_for_large_layers" : True,
+        "average_shown_activation_of_large_layer" : True,
+        "include_output_labels" : False,
+    }
+    def __init__(self, neural_network, **kwargs):
+        VGroup.__init__(self, **kwargs)
+        self.neural_network = neural_network
+        self.layer_sizes = neural_network.sizes
+        self.add_neurons()
+        self.add_edges()
+
+    def add_neurons(self):
+        layers = VGroup(*[
+            self.get_layer(size)
+            for size in self.layer_sizes
+        ])
+        layers.arrange(RIGHT, buff = self.layer_to_layer_buff)
+        self.layers = layers
+        self.add(self.layers)
+        if self.include_output_labels:
+            self.add_output_labels()
+
+    def get_layer(self, size):
+        layer = VGroup()
+        n_neurons = size
+        if n_neurons > self.max_shown_neurons:
+            n_neurons = self.max_shown_neurons
+        neurons = VGroup(*[
+            Circle(
+                radius = self.neuron_radius,
+                stroke_color = self.neuron_stroke_color,
+                stroke_width = self.neuron_stroke_width,
+                fill_color = self.neuron_fill_color,
+                fill_opacity = 0,
+            )
+            for x in range(n_neurons)
+        ])   
+        neurons.arrange(
+            DOWN, buff = self.neuron_to_neuron_buff
+        )
+        for neuron in neurons:
+            neuron.edges_in = VGroup()
+            neuron.edges_out = VGroup()
+        layer.neurons = neurons
+        layer.add(neurons)
+
+        if size > n_neurons:
+            dots = TexMobject("\\vdots")
+            dots.move_to(neurons)
+            VGroup(*neurons[:len(neurons) // 2]).next_to(
+                dots, UP, MED_SMALL_BUFF
+            )
+            VGroup(*neurons[len(neurons) // 2:]).next_to(
+                dots, DOWN, MED_SMALL_BUFF
+            )
+            layer.dots = dots
+            layer.add(dots)
+            if self.brace_for_large_layers:
+                brace = Brace(layer, LEFT)
+                brace_label = brace.get_tex(str(size))
+                layer.brace = brace
+                layer.brace_label = brace_label
+                layer.add(brace, brace_label)
+
+        return layer
+
+    def add_edges(self):
+        self.edge_groups = VGroup()
+        for l1, l2 in zip(self.layers[:-1], self.layers[1:]):
+            edge_group = VGroup()
+            for n1, n2 in it.product(l1.neurons, l2.neurons):
+                edge = self.get_edge(n1, n2)
+                edge_group.add(edge)
+                n1.edges_out.add(edge)
+                n2.edges_in.add(edge)
+            self.edge_groups.add(edge_group)
+        self.add_to_back(self.edge_groups)
+
+    def get_edge(self, neuron1, neuron2):
+        return Line(
+            neuron1.get_center(),
+            neuron2.get_center(),
+            buff = self.neuron_radius,
+            stroke_color = self.edge_color,
+            stroke_width = self.edge_stroke_width,
+        )
+
+    def get_active_layer(self, layer_index, activation_vector):
+        layer = self.layers[layer_index].deepcopy()
+        self.activate_layer(layer, activation_vector)
+        return layer
+
+    def activate_layer(self, layer, activation_vector):
+        n_neurons = len(layer.neurons)
+        av = activation_vector
+        def arr_to_num(arr):
+            return (np.sum(arr > 0.1) / float(len(arr)))**(1./3)
+
+        if len(av) > n_neurons:
+            if self.average_shown_activation_of_large_layer:
+                indices = np.arange(n_neurons)
+                indices *= int(len(av)/n_neurons)
+                indices = list(indices)
+                indices.append(len(av))
+                av = np.array([
+                    arr_to_num(av[i1:i2])
+                    for i1, i2 in zip(indices[:-1], indices[1:])
+                ])
+            else:
+                av = np.append(
+                    av[:n_neurons//2],
+                    av[-n_neurons//2:],
+                )
+        for activation, neuron in zip(av, layer.neurons):
+            neuron.set_fill(
+                color = self.neuron_fill_color,
+                opacity = activation
+            )
+        return layer
+
+    def activate_layers(self, input_vector):
+        activations = self.neural_network.get_activation_of_all_layers(input_vector)
+        for activation, layer in zip(activations, self.layers):
+            self.activate_layer(layer, activation)
+
+    def deactivate_layers(self):
+        all_neurons = VGroup(*it.chain(*[
+            layer.neurons
+            for layer in self.layers
+        ]))
+        all_neurons.set_fill(opacity = 0)
+        return self
+
+    def get_edge_propogation_animations(self, index):
+        edge_group_copy = self.edge_groups[index].copy()
+        edge_group_copy.set_stroke(
+            self.edge_propogation_color,
+            width = 1.5*self.edge_stroke_width
+        )
+        return [ShowCreationThenDestruction(
+            edge_group_copy, 
+            run_time = self.edge_propogation_time,
+            lag_ratio = 0.5
+        )]
+
+    def add_output_labels(self):
+        self.output_labels = VGroup()
+        for n, neuron in enumerate(self.layers[-1].neurons):
+            label = TexMobject(str(n))
+            label.set_height(0.75*neuron.get_height())
+            label.move_to(neuron)
+            label.shift(neuron.get_width()*RIGHT)
+            self.output_labels.add(label)
+        self.add(self.output_labels)
+
+class NetworkScene(Scene):
+    CONFIG = {
+        "layer_sizes" : [8, 7, 4, 3],
+        "network_mob_config" : {},
+    }
+    def setup(self):
+        self.add_network()
+
+    def add_network(self):
+        self.network = Network(sizes = self.layer_sizes)
+        self.network_mob = NetworkMobject(
+            self.network,
+            **self.network_mob_config
+        )
+        self.add(self.network_mob)
+
+    def feed_forward(self, input_vector, false_confidence = False, added_anims = None):
+        if added_anims is None:
+            added_anims = []
+        activations = self.network.get_activation_of_all_layers(
+            input_vector
+        )
+        if false_confidence:
+            i = np.argmax(activations[-1])
+            activations[-1] *= 0
+            activations[-1][i] = 1.0
+        for i, activation in enumerate(activations):
+            self.show_activation_of_layer(i, activation, added_anims)
+            added_anims = []
+
+    def show_activation_of_layer(self, layer_index, activation_vector, added_anims = None):
+        if added_anims is None:
+            added_anims = []
+        layer = self.network_mob.layers[layer_index]
+        active_layer = self.network_mob.get_active_layer(
+            layer_index, activation_vector
+        )
+        anims = [Transform(layer, active_layer)]
+        if layer_index > 0:
+            anims += self.network_mob.get_edge_propogation_animations(
+                layer_index-1
+            )
+        anims += added_anims
+        self.play(*anims)
+
+    def remove_random_edges(self, prop = 0.9):
+        for edge_group in self.network_mob.edge_groups:
+            for edge in list(edge_group):
+                if np.random.random() < prop:
+                    edge_group.remove(edge)
+
+def make_transparent(image_mob):
+    alpha_vect = np.array(
+        image_mob.pixel_array[:,:,0],
+        dtype = 'uint8'
+    )
+    image_mob.set_color(WHITE)
+    image_mob.pixel_array[:,:,3] = alpha_vect
+    return image_mob
+
+
 class underline(Line):
     # buff 0.07
     def __init__(self,texto,buff=0.09,**kwargs):
@@ -325,15 +554,15 @@ class underline(Line):
 
 
 
-class Test(MovingCameraScene):
+class ArrowScene(Scene):
     def construct(self):
         step1 = TextMobject("Step 1")
         step2 = TextMobject("Step 2")
         step1.move_to(LEFT*2+DOWN*2)
         step2.move_to(4*RIGHT+2*UP)
-        arrow1 = Arrow(step1.get_right(),step2.get_left(),buff=0.1)
+        arrow1 = Arrow(step1.get_left(),step2.get_right())
         arrow1.set_color(RED)
-        arrow2 = Arrow(step1.get_top(),step2.get_bottom(),buff=0.1)
+        arrow2 = Arrow(step1.get_top(),step2.get_bottom())
         arrow2.set_color(BLUE)
         self.play(Write(step1),Write(step2))
         self.play(GrowArrow(arrow1))
@@ -341,27 +570,51 @@ class Test(MovingCameraScene):
         self.wait()
 
 
-class MainPresentation(MovingCameraScene):
+class MainPresentation(NetworkScene, MovingCameraScene):    
     CONFIG = {
+        # "layer_sizes" : DEFAULT_LAYER_SIZES,
+        "network_mob_config" : {
+            "neuron_to_neuron_buff" : MED_LARGE_BUFF,
+            "layer_to_layer_buff" : 1,
+            "edge_stroke_width" : 1.2,
+            "edge_propogation_color" : YELLOW_E,
+            "edge_propogation_time" : 2,
+        },
         "public_color" : GREEN,
         "private_color" : RED,
         "signature_color" : BLUE_C,
     }
 
+    def setup(self):
+        MovingCameraScene.setup(self)
+        NetworkScene.setup(self)
+        self.remove(self.network_mob)
+
     def construct(self):
-        # self.show_quote()
+        self.show_quote()
+        self.remove_all_obj_in_scene()
+        self.show_title()
+        self.introduction()
+        self.remove_all_obj_in_scene()
+        self.show_amazon_example()
+        self.remove_all_obj_in_scene()
+        self.show_opinions_example()
+        self.remove_all_obj_in_scene()
+        self.show_def_opinion()
+        # self.add_title('Nuevo titulo principal')
         # self.remove_all_obj_in_scene()
-        # self.show_title()
-        # self.introduction()
-        # self.remove_all_obj_in_scene()
-        # self.show_amazon_example()
-        # self.remove_all_obj_in_scene()
-        # self.show_opinions_example()
-        # self.remove_all_obj_in_scene()
-        # self.show_def_opinion()
-        # self.remove_all_obj_in_scene()
-        #self.add_title('Nuevo titulo principal')
-        self.test()
+        # self.add_title('Nuevo titulo principal')
+        # self.test()
+        self.show_words()
+        self.show_network()
+        self.show_input_document()
+        self.show_output_layer()
+        self.show_math()
+        ##self.ask_about_layers()
+        self.show_learning()
+        ##self.show_videos()
+        self.remove_all_obj_in_scene()
+        
 
     def remove_all_obj_in_scene(self):
         self.play(
@@ -586,7 +839,7 @@ class MainPresentation(MovingCameraScene):
         sentiment.set_color(SENTIMENT_COLOR)
         sentiment.scale(0.6)
 
-        sentiment_arrow = Arrow(sentiment_rect.get_right(),sentiment.get_left(), tip_length=0.15,buff=SMALL_BUFF)
+        sentiment_arrow = Arrow(sentiment_rect.get_right(), sentiment.get_left(), tip_length=0.15,buff=SMALL_BUFF)
         sentiment_arrow.set_stroke(width=1.4)
         # sentiment_arrow.scale(0.3)
         sentiment_arrow.set_color(SENTIMENT_COLOR)
@@ -762,10 +1015,11 @@ class MainPresentation(MovingCameraScene):
 
         obj_text = TextMobject("Recuperar las opiniones en los textos.").next_to(def_obj_title, 1.5*DOWN)
 
-        def_sol_title=TextMobject("Solucion Propuesta").scale(1.2).next_to(obj_text, 5.5*DOWN)
+        def_sol_title=TextMobject("Solucion Propuesta").scale(1.2).next_to(obj_text, 5.1*DOWN)
         ul_def_sol_title=underline(def_sol_title, stroke_width=1)
 
-        sol_text = TextMobject('Utilizar "Metodos de Aprendizaje Automatico".').next_to(def_sol_title, 1.5*DOWN)
+        sol_text = TextMobject('Utilizar "Metodos de ', 'Aprendizaje Automatico', '".').next_to(def_sol_title, 1.5*DOWN)
+        red_text = TextMobject('En particular ', '"', 'Redes Neuronales Artificiales', '".').next_to(sol_text, 0.2*DOWN)
 
         self.play(
             Write(def_obj_title),
@@ -777,7 +1031,22 @@ class MainPresentation(MovingCameraScene):
             GrowFromCenter(ul_def_sol_title),
         )
         self.play(Write(sol_text))
+        self.play(Write(red_text))
         self.wait()
+
+        self.play(
+            FadeOut(op_group),
+            FadeOut(def_obj_title),
+            FadeOut(ul_def_obj_title),
+            FadeOut(obj_text),
+        )
+        self.wait()
+
+        self.def_sol_title = def_sol_title
+        self.ul_def_sol_title = ul_def_sol_title
+        self.sol_text = sol_text
+        self.red_text = red_text
+
 
     def add_title(self, text):
         title = TextMobject(text)
@@ -790,7 +1059,8 @@ class MainPresentation(MovingCameraScene):
         self.play(Write(title), Write(h_line))
 
 
-    def get_document(self):
+    """
+    def get_document_old(self):
         lines = VGroup(*[Line(LEFT, RIGHT) for x in range(5)])
         lines.arrange(DOWN)
         last_line = lines[-1]
@@ -814,7 +1084,7 @@ class MainPresentation(MovingCameraScene):
         signature.set_color(self.signature_color)
         line = document[1][-1]
         signature.next_to(line, UP, SMALL_BUFF)
-        """
+        ""
         documents = VGroup(*[
             document.copy()
             for x in range(2)
@@ -839,22 +1109,11 @@ class MainPresentation(MovingCameraScene):
         self.wait()
         self.signatures = signatures
         self.documents = documents
-        """
+        ""
         return VGroup(document, signature)
-        
+    """
+
     def test(self):
-        print(sys.path)
-        rect = Rectangle(
-            height = 2.5, width = 7,
-            stroke_width = 0,
-            fill_color = BLACK,
-            fill_opacity = 0.8,
-        )
-        self.play(ShowCreation(rect))
-        self.wait()
-
-
-    def test2(self):
         document = self.get_document()
         rect = Rectangle(
             height = 2.5, width = 7,
@@ -934,6 +1193,246 @@ class MainPresentation(MovingCameraScene):
             )
             for mob in (pair_mobs, triple_mobs, new_mobs)
         ])
+
+    def show_words(self):
+        words = VGroup(
+            TextMobject("Aprendizaje", " automatico").set_color(BLUE_C),
+            TextMobject("Red Neuronal Artificial").set_color(BLUE_D),
+        )
+        
+        words.arrange(DOWN)
+        words.to_corner(UR,buff=0.3)
+        self.play(
+            FadeOut(self.def_sol_title),
+            FadeOut(self.ul_def_sol_title),
+            FadeOut(self.sol_text),
+            FadeOut(self.red_text),
+            ReplacementTransform(self.sol_text[1].copy(), words[0]),
+            ReplacementTransform(self.red_text[2].copy(), words[1])
+        )
+        self.wait()
+
+        self.words = words
+
+    def show_network(self):
+        network_mob = self.network_mob
+        self.play(
+            ReplacementTransform(
+                VGroup(self.words[1].copy()),
+                network_mob.layers
+            ),
+            run_time = 1
+        )
+        self.play(ShowCreation(
+            network_mob.edge_groups,
+            lag_ratio = 0.5,
+            run_time = 2,
+            rate_func=linear,
+        ))
+
+        self.wait()
+        # in_vect = np.random.random(self.network.sizes[0])
+        # self.feed_forward(in_vect)
+
+    def get_document(self):
+        lines = VGroup(*[Line(LEFT, RIGHT) for x in range(5)])
+        lines.arrange(DOWN)
+        last_line = lines[-1]
+        last_line.scale(0.7, about_point = last_line.get_left())
+
+        signature_line = lines[0].copy()
+        signature_line.set_stroke(width = 2)
+        signature_line.next_to(lines, DOWN, LARGE_BUFF)
+        ex = TexMobject("\\times")
+        ex.scale(0.7)
+        ex.next_to(signature_line, UP, SMALL_BUFF, LEFT)
+        lines.add(ex, signature_line)
+
+        rect = SurroundingRectangle(
+            lines, 
+            color = LIGHT_GREY, 
+            buff = MED_SMALL_BUFF
+        )
+
+        text = TextMobject("Texto")
+        # text.scale(0.7)
+        text.next_to(rect, UP, 0.3)
+        document = VGroup(rect, lines, text)
+        # signature = get_cursive_name("Texto")
+        # signature.set_color(self.signature_color)
+        # line = document[1][-1]
+        # signature.next_to(line, UP, SMALL_BUFF)
+        return document
+
+    def show_input_document(self):
+        document = self.get_document()
+        document.to_edge(LEFT)
+        #document.scale(0.7)
+        document.shift(0.5*UP + RIGHT)
+        document_copy = document.copy()
+
+        network_mob = self.network_mob
+        layers = network_mob.layers
+        layers.save_state()
+
+        input_layer = layers[0]
+        all_edges = VGroup(*it.chain(*network_mob.edge_groups))
+        
+        self.play(ShowCreation(document), ShowCreation(document_copy))
+
+        edge_animation = LaggedStartMap(
+            ShowCreationThenDestruction, 
+            all_edges.copy().set_fill(YELLOW).set_color(YELLOW).set_stroke(width=1.8),
+            run_time = 4,
+            lag_ratio = 0.1,
+            remover = True,
+        )
+        
+        layer_animation = Transform(
+            # VGroup(*layers), VGroup(*active_layers),
+            document_copy, input_layer,
+            run_time = 1,
+            # lag_ratio = 0.5,
+            rate_func=linear,
+        )
+        self.play(layer_animation)
+        self.play(edge_animation)
+
+        self.document = document
+
+    def show_output_layer(self):
+        text_labels = ['Positivo', 'Neutral', 'Negativo']
+        text_color = [GREEN, WHITE, RED]
+        labels = VGroup()
+        neurons = self.network_mob.layers[-1].neurons
+        labels_height = [0.225, 0.22, 0.25]
+        for i in range(3):
+            neuron = neurons[i]
+            label = TexMobject(text_labels[i], stroke_width=0.5, color=text_color[i])
+            label.set_height(labels_height[i])
+            label.move_to(neuron)
+            label.shift(0.75*RIGHT)
+            labels.add(label)
+        
+        layer = self.network_mob.layers[-1]
+        rect = SurroundingRectangle(
+            VGroup(layer, labels)
+        )
+        neuron = layer.neurons[0]
+        neuron.set_fill(GREEN, 0)
+        label = labels[0]
+        print(str(label))
+        for mob in neuron, label:
+            mob.save_state()
+            mob.generate_target()
+        neuron.target.scale_in_place(4)
+        neuron.target.shift(1.5*RIGHT)
+        label.target.scale(1.5)
+        label.target.next_to(neuron.target, RIGHT)
+
+        activation = DecimalNumber(0)
+        activation.move_to(neuron.target)
+
+        def change_activation(num):
+            self.play(
+                neuron.set_fill, None, num,
+                ChangingDecimal(
+                    activation,
+                    lambda a : neuron.get_fill_opacity(),
+                ),
+                UpdateFromFunc(
+                    activation,
+                    lambda m : m.set_fill(
+                        BLACK if neuron.get_fill_opacity() > 0.8 else WHITE
+                    )
+                ),
+                run_time=0.5,
+            )
+
+        self.play(ShowCreation(rect), run_time=1)
+        self.play(LaggedStartMap(FadeIn, labels), run_time=1)
+        self.wait()
+        self.play(
+            MoveToTarget(neuron),
+            MoveToTarget(label),
+            FadeOut(rect),
+        )
+        self.play(FadeIn(activation))
+        for num in 0.1, 0.97:
+            change_activation(num)
+            self.wait()
+        self.play(
+            neuron.restore,
+            neuron.set_fill, None, 1,
+            label.restore,
+            FadeOut(activation),
+        )
+        self.wait()
+
+        self.labels = labels
+
+    def show_math(self):
+        equation = TexMobject(
+            "\\textbf{a}_{l+1}", "=",  
+            "\\sigma(",
+                "W_l", "\\textbf{a}_l", "+", "b_l",
+            ")"
+        )
+        equation.set_color_by_tex_to_color_map({
+            "\\textbf{a}" : GREEN,
+        })
+        equation.move_to(self.network_mob.get_corner(UP+RIGHT))
+        equation.to_edge(UP)
+
+        #self.play(Write(equation, run_time = 2))
+        #self.wait()
+        self.equation = equation
+
+    def show_learning(self):
+        word = self.words[0][0].copy()
+        rect = SurroundingRectangle(word, color = YELLOW)
+        self.network_mob.neuron_fill_color = GREEN_E
+
+        layer = self.network_mob.layers[-1]
+        activation = np.zeros(len(layer.neurons))
+        activation[0] = 1.0
+        active_layer = self.network_mob.get_active_layer(
+            -1, activation
+        )
+        word_group = VGroup(word, rect)
+        word_group.generate_target()
+        word_group.target.to_edge(LEFT)
+        word_group.target[0].set_color(YELLOW)
+        word_group.target[1].set_stroke(width = 0)
+
+        self.play(ShowCreation(rect))
+        self.play(
+            Transform(layer, active_layer),
+            MoveToTarget(word_group),
+        )
+
+        for edge_group in reversed(self.network_mob.edge_groups):
+            m = 2
+            edge_group.generate_target()
+            for edge in edge_group.target:
+                edge.set_stroke(
+                    YELLOW, 
+                    width = (4*np.random.random()**2) + m
+                )
+                edge.set_color_by_gradient([GREEN, RED, YELLOW])
+                if m > 0:
+                    m = -1
+            self.play(MoveToTarget(edge_group))
+            
+
+        signature = get_cursive_name("Positivo")
+        signature.set_color(GREEN)
+        line = self.document[1][-1]
+        signature.next_to(line, UP, SMALL_BUFF)
+        self.play(Write(signature))
+
+        self.wait(2)
+        self.learning_word = word
 
 
 def get_cursive_name(name):
@@ -2014,235 +2513,6 @@ class MinutPhysicsWrapper(Scene):
 ============================================
 """
 
-class NetworkMobject(VGroup):
-    CONFIG = {
-        "neuron_radius" : 0.15,
-        "neuron_to_neuron_buff" : MED_SMALL_BUFF,
-        "layer_to_layer_buff" : LARGE_BUFF,
-        "neuron_stroke_color" : BLUE,
-        "neuron_stroke_width" : 3,
-        "neuron_fill_color" : GREEN,
-        "edge_color" : LIGHT_GREY,
-        "edge_stroke_width" : 2,
-        "edge_propogation_color" : YELLOW,
-        "edge_propogation_time" : 1,
-        "max_shown_neurons" : 16,
-        "brace_for_large_layers" : True,
-        "average_shown_activation_of_large_layer" : True,
-        "include_output_labels" : False,
-    }
-    def __init__(self, neural_network, **kwargs):
-        VGroup.__init__(self, **kwargs)
-        self.neural_network = neural_network
-        self.layer_sizes = neural_network.sizes
-        self.add_neurons()
-        self.add_edges()
-
-    def add_neurons(self):
-        layers = VGroup(*[
-            self.get_layer(size)
-            for size in self.layer_sizes
-        ])
-        layers.arrange(RIGHT, buff = self.layer_to_layer_buff)
-        self.layers = layers
-        self.add(self.layers)
-        if self.include_output_labels:
-            self.add_output_labels()
-
-    def get_layer(self, size):
-        layer = VGroup()
-        n_neurons = size
-        if n_neurons > self.max_shown_neurons:
-            n_neurons = self.max_shown_neurons
-        neurons = VGroup(*[
-            Circle(
-                radius = self.neuron_radius,
-                stroke_color = self.neuron_stroke_color,
-                stroke_width = self.neuron_stroke_width,
-                fill_color = self.neuron_fill_color,
-                fill_opacity = 0,
-            )
-            for x in range(n_neurons)
-        ])   
-        neurons.arrange(
-            DOWN, buff = self.neuron_to_neuron_buff
-        )
-        for neuron in neurons:
-            neuron.edges_in = VGroup()
-            neuron.edges_out = VGroup()
-        layer.neurons = neurons
-        layer.add(neurons)
-
-        if size > n_neurons:
-            dots = TexMobject("\\vdots")
-            dots.move_to(neurons)
-            VGroup(*neurons[:len(neurons) // 2]).next_to(
-                dots, UP, MED_SMALL_BUFF
-            )
-            VGroup(*neurons[len(neurons) // 2:]).next_to(
-                dots, DOWN, MED_SMALL_BUFF
-            )
-            layer.dots = dots
-            layer.add(dots)
-            if self.brace_for_large_layers:
-                brace = Brace(layer, LEFT)
-                brace_label = brace.get_tex(str(size))
-                layer.brace = brace
-                layer.brace_label = brace_label
-                layer.add(brace, brace_label)
-
-        return layer
-
-    def add_edges(self):
-        self.edge_groups = VGroup()
-        for l1, l2 in zip(self.layers[:-1], self.layers[1:]):
-            edge_group = VGroup()
-            for n1, n2 in it.product(l1.neurons, l2.neurons):
-                edge = self.get_edge(n1, n2)
-                edge_group.add(edge)
-                n1.edges_out.add(edge)
-                n2.edges_in.add(edge)
-            self.edge_groups.add(edge_group)
-        self.add_to_back(self.edge_groups)
-
-    def get_edge(self, neuron1, neuron2):
-        return Line(
-            neuron1.get_center(),
-            neuron2.get_center(),
-            buff = self.neuron_radius,
-            stroke_color = self.edge_color,
-            stroke_width = self.edge_stroke_width,
-        )
-
-    def get_active_layer(self, layer_index, activation_vector):
-        layer = self.layers[layer_index].deepcopy()
-        self.activate_layer(layer, activation_vector)
-        return layer
-
-    def activate_layer(self, layer, activation_vector):
-        n_neurons = len(layer.neurons)
-        av = activation_vector
-        def arr_to_num(arr):
-            return (np.sum(arr > 0.1) / float(len(arr)))**(1./3)
-
-        if len(av) > n_neurons:
-            if self.average_shown_activation_of_large_layer:
-                indices = np.arange(n_neurons)
-                indices *= int(len(av)/n_neurons)
-                indices = list(indices)
-                indices.append(len(av))
-                av = np.array([
-                    arr_to_num(av[i1:i2])
-                    for i1, i2 in zip(indices[:-1], indices[1:])
-                ])
-            else:
-                av = np.append(
-                    av[:n_neurons//2],
-                    av[-n_neurons//2:],
-                )
-        for activation, neuron in zip(av, layer.neurons):
-            neuron.set_fill(
-                color = self.neuron_fill_color,
-                opacity = activation
-            )
-        return layer
-
-    def activate_layers(self, input_vector):
-        activations = self.neural_network.get_activation_of_all_layers(input_vector)
-        for activation, layer in zip(activations, self.layers):
-            self.activate_layer(layer, activation)
-
-    def deactivate_layers(self):
-        all_neurons = VGroup(*it.chain(*[
-            layer.neurons
-            for layer in self.layers
-        ]))
-        all_neurons.set_fill(opacity = 0)
-        return self
-
-    def get_edge_propogation_animations(self, index):
-        edge_group_copy = self.edge_groups[index].copy()
-        edge_group_copy.set_stroke(
-            self.edge_propogation_color,
-            width = 1.5*self.edge_stroke_width
-        )
-        return [ShowCreationThenDestruction(
-            edge_group_copy, 
-            run_time = self.edge_propogation_time,
-            lag_ratio = 0.5
-        )]
-
-    def add_output_labels(self):
-        self.output_labels = VGroup()
-        for n, neuron in enumerate(self.layers[-1].neurons):
-            label = TexMobject(str(n))
-            label.set_height(0.75*neuron.get_height())
-            label.move_to(neuron)
-            label.shift(neuron.get_width()*RIGHT)
-            self.output_labels.add(label)
-        self.add(self.output_labels)
-
-class NetworkScene(Scene):
-    CONFIG = {
-        "layer_sizes" : [8, 7, 4, 3],
-        "network_mob_config" : {},
-    }
-    def setup(self):
-        self.add_network()
-
-    def add_network(self):
-        self.network = Network(sizes = self.layer_sizes)
-        self.network_mob = NetworkMobject(
-            self.network,
-            **self.network_mob_config
-        )
-        self.add(self.network_mob)
-
-    def feed_forward(self, input_vector, false_confidence = False, added_anims = None):
-        if added_anims is None:
-            added_anims = []
-        activations = self.network.get_activation_of_all_layers(
-            input_vector
-        )
-        if false_confidence:
-            i = np.argmax(activations[-1])
-            activations[-1] *= 0
-            activations[-1][i] = 1.0
-        for i, activation in enumerate(activations):
-            self.show_activation_of_layer(i, activation, added_anims)
-            added_anims = []
-
-    def show_activation_of_layer(self, layer_index, activation_vector, added_anims = None):
-        if added_anims is None:
-            added_anims = []
-        layer = self.network_mob.layers[layer_index]
-        active_layer = self.network_mob.get_active_layer(
-            layer_index, activation_vector
-        )
-        anims = [Transform(layer, active_layer)]
-        if layer_index > 0:
-            anims += self.network_mob.get_edge_propogation_animations(
-                layer_index-1
-            )
-        anims += added_anims
-        self.play(*anims)
-
-    def remove_random_edges(self, prop = 0.9):
-        for edge_group in self.network_mob.edge_groups:
-            for edge in list(edge_group):
-                if np.random.random() < prop:
-                    edge_group.remove(edge)
-
-def make_transparent(image_mob):
-    alpha_vect = np.array(
-        image_mob.pixel_array[:,:,0],
-        dtype = 'uint8'
-    )
-    image_mob.set_color(WHITE)
-    image_mob.pixel_array[:,:,3] = alpha_vect
-    return image_mob
-
-
 class LayOutPlan(NetworkScene):
     CONFIG = {
         # "layer_sizes" : DEFAULT_LAYER_SIZES,
@@ -2322,68 +2592,35 @@ class LayOutPlan(NetworkScene):
         # in_vect = np.random.random(self.network.sizes[0])
         # self.feed_forward(in_vect)
 
-    def show_math(self):
-        equation = TexMobject(
-            "\\textbf{a}_{l+1}", "=",  
-            "\\sigma(",
-                "W_l", "\\textbf{a}_l", "+", "b_l",
-            ")"
-        )
-        equation.set_color_by_tex_to_color_map({
-            "\\textbf{a}" : GREEN,
-        })
-        equation.move_to(self.network_mob.get_corner(UP+RIGHT))
-        equation.to_edge(UP)
+    def get_document(self):
+        lines = VGroup(*[Line(LEFT, RIGHT) for x in range(5)])
+        lines.arrange(DOWN)
+        last_line = lines[-1]
+        last_line.scale(0.7, about_point = last_line.get_left())
 
-        #self.play(Write(equation, run_time = 2))
-        #self.wait()
-        self.equation = equation
+        signature_line = lines[0].copy()
+        signature_line.set_stroke(width = 2)
+        signature_line.next_to(lines, DOWN, LARGE_BUFF)
+        ex = TexMobject("\\times")
+        ex.scale(0.7)
+        ex.next_to(signature_line, UP, SMALL_BUFF, LEFT)
+        lines.add(ex, signature_line)
 
-    def show_learning(self):
-        word = self.words[0][0].copy()
-        rect = SurroundingRectangle(word, color = YELLOW)
-        self.network_mob.neuron_fill_color = GREEN_E
-
-        layer = self.network_mob.layers[-1]
-        activation = np.zeros(len(layer.neurons))
-        activation[0] = 1.0
-        active_layer = self.network_mob.get_active_layer(
-            -1, activation
-        )
-        word_group = VGroup(word, rect)
-        word_group.generate_target()
-        word_group.target.to_edge(LEFT)
-        word_group.target[0].set_color(YELLOW)
-        word_group.target[1].set_stroke(width = 0)
-
-        self.play(ShowCreation(rect))
-        self.play(
-            Transform(layer, active_layer),
-            MoveToTarget(word_group),
+        rect = SurroundingRectangle(
+            lines, 
+            color = LIGHT_GREY, 
+            buff = MED_SMALL_BUFF
         )
 
-        for edge_group in reversed(self.network_mob.edge_groups):
-            m = 2
-            edge_group.generate_target()
-            for edge in edge_group.target:
-                edge.set_stroke(
-                    YELLOW, 
-                    width = (4*np.random.random()**2) + m
-                )
-                edge.set_color_by_gradient([GREEN, RED, YELLOW])
-                if m > 0:
-                    m = -1
-            self.play(MoveToTarget(edge_group))
-            
-
-        signature = get_cursive_name("Positivo")
-        signature.set_color(GREEN)
-        line = self.document[1][-1]
-        signature.next_to(line, UP, SMALL_BUFF)
-        self.play(Write(signature))
-
-        self.wait(2)
-        self.learning_word = word
+        text = TextMobject("Texto")
+        # text.scale(0.7)
+        text.next_to(rect, UP, 0.3)
+        document = VGroup(rect, lines, text)
+        # signature = get_cursive_name("Texto")
+        # signature.set_color(self.signature_color)
+        # line = document[1][-1]
+        # signature.next_to(line, UP, SMALL_BUFF)
+        return document
 
     def show_input_document(self):
         document = self.get_document()
@@ -2420,38 +2657,6 @@ class LayOutPlan(NetworkScene):
         self.play(edge_animation)
 
         self.document = document
-        
-
-    
-    def get_document(self):
-        lines = VGroup(*[Line(LEFT, RIGHT) for x in range(5)])
-        lines.arrange(DOWN)
-        last_line = lines[-1]
-        last_line.scale(0.7, about_point = last_line.get_left())
-
-        signature_line = lines[0].copy()
-        signature_line.set_stroke(width = 2)
-        signature_line.next_to(lines, DOWN, LARGE_BUFF)
-        ex = TexMobject("\\times")
-        ex.scale(0.7)
-        ex.next_to(signature_line, UP, SMALL_BUFF, LEFT)
-        lines.add(ex, signature_line)
-
-        rect = SurroundingRectangle(
-            lines, 
-            color = LIGHT_GREY, 
-            buff = MED_SMALL_BUFF
-        )
-
-        text = TextMobject("Texto")
-        # text.scale(0.7)
-        text.next_to(rect, UP, 0.3)
-        document = VGroup(rect, lines, text)
-        # signature = get_cursive_name("Texto")
-        # signature.set_color(self.signature_color)
-        # line = document[1][-1]
-        # signature.next_to(line, UP, SMALL_BUFF)
-        return document
 
     def show_output_layer(self):
         text_labels = ['Positivo', 'Neutral', 'Negativo']
@@ -2523,6 +2728,70 @@ class LayOutPlan(NetworkScene):
         self.wait()
 
         self.labels = labels
+
+    def show_math(self):
+        equation = TexMobject(
+            "\\textbf{a}_{l+1}", "=",  
+            "\\sigma(",
+                "W_l", "\\textbf{a}_l", "+", "b_l",
+            ")"
+        )
+        equation.set_color_by_tex_to_color_map({
+            "\\textbf{a}" : GREEN,
+        })
+        equation.move_to(self.network_mob.get_corner(UP+RIGHT))
+        equation.to_edge(UP)
+
+        #self.play(Write(equation, run_time = 2))
+        #self.wait()
+        self.equation = equation
+
+    def show_learning(self):
+        word = self.words[0][0].copy()
+        rect = SurroundingRectangle(word, color = YELLOW)
+        self.network_mob.neuron_fill_color = GREEN_E
+
+        layer = self.network_mob.layers[-1]
+        activation = np.zeros(len(layer.neurons))
+        activation[0] = 1.0
+        active_layer = self.network_mob.get_active_layer(
+            -1, activation
+        )
+        word_group = VGroup(word, rect)
+        word_group.generate_target()
+        word_group.target.to_edge(LEFT)
+        word_group.target[0].set_color(YELLOW)
+        word_group.target[1].set_stroke(width = 0)
+
+        self.play(ShowCreation(rect))
+        self.play(
+            Transform(layer, active_layer),
+            MoveToTarget(word_group),
+        )
+
+        for edge_group in reversed(self.network_mob.edge_groups):
+            m = 2
+            edge_group.generate_target()
+            for edge in edge_group.target:
+                edge.set_stroke(
+                    YELLOW, 
+                    width = (4*np.random.random()**2) + m
+                )
+                edge.set_color_by_gradient([GREEN, RED, YELLOW])
+                if m > 0:
+                    m = -1
+            self.play(MoveToTarget(edge_group))
+            
+
+        signature = get_cursive_name("Positivo")
+        signature.set_color(GREEN)
+        line = self.document[1][-1]
+        signature.next_to(line, UP, SMALL_BUFF)
+        self.play(Write(signature))
+
+        self.wait(2)
+        self.learning_word = word
+
 
     def show_videos(self):
         network_mob = self.network_mob
