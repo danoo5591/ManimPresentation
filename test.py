@@ -14,6 +14,8 @@ from scipy import ndimage
 
 sys.path.append(os.path.dirname(__file__))
 from manimlib.imports import *
+
+from efvgt import get_confetti_animations
 from nn.network import *
 
 
@@ -590,6 +592,9 @@ class MainPresentation(NetworkScene, MovingCameraScene):
         NetworkScene.setup(self)
         self.remove(self.network_mob)
 
+    def construct_old(self):
+        self.show_benefit()
+
     def construct(self):
         self.show_quote()
         self.remove_all_obj_in_scene()
@@ -614,7 +619,10 @@ class MainPresentation(NetworkScene, MovingCameraScene):
         self.show_learning()
         ##self.show_videos()
         self.remove_all_obj_in_scene()
-        
+
+        self.show_benefit()
+        self.show_end()
+
 
     def remove_all_obj_in_scene(self):
         self.play(
@@ -1113,6 +1121,43 @@ class MainPresentation(NetworkScene, MovingCameraScene):
         return VGroup(document, signature)
     """
 
+    def show_benefit(self):
+        titulo=TextMobject("¿Para qué sirve el estudio de las opiniones?").scale(1.2).to_edge(UP).shift(UP*0.25)
+        ul=underline(titulo)
+        ul.set_stroke(width=1)
+        lista=VGroup(
+            TextMobject("$\\bullet$ Organiza la información más eficiente."),
+            TextMobject("$\\bullet$ Entender rápidamente actitudes del consumidor y reaccionar."),
+            TextMobject("$\\bullet$ Contribuye en la toma de decisiones."),
+            TextMobject("$\\bullet$ Facilita el conocimiento de los usuarios de una empresa."),
+            TextMobject("$\\bullet$ Desarrollar estrategias atraer nuevos clientes."),
+            TextMobject("$\\bullet$ Herramientas visuales."),
+            TextMobject("$\\bullet$ Metodo para realizar encuestas rapidas."),
+            TextMobject("$\\bullet$ Marketing personalizado: Ofrecer productos para audiencias específicas."),
+            ).arrange_submobjects(DOWN,aligned_edge=LEFT)
+
+        lista.scale(0.8)
+        lista.next_to(titulo, 4.5*DOWN)
+
+        self.play(Write(titulo),GrowFromCenter(ul))
+        self.play(LaggedStart(Write(lista)))
+        self.wait(2)
+        self.play(
+            FadeOut(titulo),
+            FadeOut(ul),
+            FadeOut(lista),
+            run_time=1,
+        )
+
+    def show_end(self):
+        confetti_spirils = self.confetti_spirils = list(map(
+            turn_animation_into_updater,
+            get_confetti_animations(100)
+        ))
+        self.add(*confetti_spirils)
+        self.play(ShowCreation(TextMobject("¡Muchas Gracias!").scale(1.5)), run_time=2)
+        self.wait(2)
+
     def test(self):
         document = self.get_document()
         rect = Rectangle(
@@ -1450,7 +1495,7 @@ class ZoomT2(ZoomedScene):
     }
 
     def show_temario(self):
-        titulo=TextMobject("\\sc Temario").scale(2).to_edge(UP).shift(UP*0.25)
+        titulo=TextMobject("Temario").scale(1.1).to_edge(UP).shift(UP*0.25)
         ul=underline(titulo)
         lista=VGroup(
             TextMobject("0. Instalación (Windows, Mac, GNU/Linux)."),
@@ -1475,6 +1520,9 @@ class ZoomT2(ZoomedScene):
         ZoomedScene.setup(self)
 
     def construct(self):
+        self.show_temario()
+
+    def construct_2(self):
         # grilla=Grilla()
         #self.add_foreground_mobject(grilla)
         texto1=Texto("Undolatory theory",color=RED)
