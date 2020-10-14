@@ -287,8 +287,8 @@ class MainPresentation(NetworkScene, MovingCameraScene):
         self.remove(self.network_mob)
 
     def construct(self):
-        self.show_quote()
-        self.remove_all_obj_in_scene()
+        # self.show_quote()
+        # self.remove_all_obj_in_scene()
         self.show_title()
         self.introduction()
         self.remove_all_obj_in_scene()
@@ -361,9 +361,10 @@ class MainPresentation(NetworkScene, MovingCameraScene):
                 FadeIn(title),
                 FadeIn(autor),
                 FadeIn(instituto),
-                FadeIn(grupo)
+                FadeIn(grupo), 
+                run_time=0.5
             )
-            self.play(title.set_color, BLUE)
+            # self.play(title.set_color, BLUE)
             self.wait()
             self.play(
                 FadeOut(universidad),
@@ -372,17 +373,17 @@ class MainPresentation(NetworkScene, MovingCameraScene):
                 FadeOut(autor),
                 FadeOut(instituto),
                 FadeOut(grupo),
+                run_time=0.5
             )
             self.wait()
     
     def introduction(self):
             question_1 = TextMobject('¿Que entendemos por ','"', 'Opinión', '"?')
             question_2 = TextMobject('¿Como definimos la "', 'Opinion', r'" de forma en que \\ una computadora lo entienda?')
+            question_1[2].set_color(YELLOW)
             question_2[1].set_color(YELLOW)
             self.play(Write(question_1))
-            self.play(question_1[2].set_color, YELLOW)
             self.wait()
-
             self.play(ReplacementTransform(question_1, question_2))
             self.wait(2)
 
@@ -391,19 +392,19 @@ class MainPresentation(NetworkScene, MovingCameraScene):
         background = ImageMobject("img/celular_amazon.png")
         background.set_height(FRAME_HEIGHT)
         self.play(FadeIn(background))
-        self.wait(1)
+        self.wait(4)
 
         entity_rect = Rectangle(height=5.3, width=2.6)
         entity_rect.move_to(0.4*UP + 3.55*LEFT)
         entity = TextMobject("Entidad")
-        entity.next_to(entity_rect, 0.3*UP)
+        entity.next_to(entity_rect, 0.3*DOWN)
         VGroup(entity, entity_rect).set_color(BLUE_E)
 
         self.play(ShowCreation(entity_rect), run_time=2)
         self.play(
             Write(entity),
         )
-        self.wait(1)
+        self.wait(2)
 
         aspect_rect = Rectangle(height=2.56, width=4)
         aspect_rect.move_to(0.9*UP + 1.5*RIGHT)
@@ -416,7 +417,7 @@ class MainPresentation(NetworkScene, MovingCameraScene):
             Write(aspect),
         )
 
-        self.wait(2)
+        self.wait()
 
         # Save the state of camera
         self.camera_frame.save_state()
@@ -428,7 +429,7 @@ class MainPresentation(NetworkScene, MovingCameraScene):
             # Move the camera to the object
             self.camera_frame.move_to,aspect_group
         )
-        self.wait(2)
+        self.wait()
         
         # Add aspects lines
         aspect_lines = VGroup(*[Line(0.5*LEFT, 2.5*RIGHT) for i in range(5)])
@@ -443,7 +444,7 @@ class MainPresentation(NetworkScene, MovingCameraScene):
         
         self.play(Write(aspect_lines))
 
-        self.wait()
+        self.wait(2)
 
         # Restore the state saved
         self.play(Restore(self.camera_frame))
@@ -457,7 +458,7 @@ class MainPresentation(NetworkScene, MovingCameraScene):
         background = ImageMobject("img/opinion_photo.png")
         background.set_height(FRAME_HEIGHT)
         self.play(FadeIn(background_rect), FadeIn(background))
-        self.wait()
+        # self.wait()
         
         opinion_rect = Rectangle(height=2.5, width=5.6)
         opinion_rect.set_color(BLUE_E)
@@ -572,19 +573,21 @@ class MainPresentation(NetworkScene, MovingCameraScene):
 
         self.play(
             FadeIn(big_rect),
-            MoveToTarget(frame, run_time=3),
+            MoveToTarget(frame, run_time=1),
         )
-        self.wait()
+        self.wait(5)
 
-        # Display de autor y tiempo
-
-        self.play(ShowCreation(author), Write(author_txt))
-        self.play(ShowCreation(time), Write(time_txt))
-        
         # Display de aspectos
         self.play(Write(aspect_positive), ShowCreation(aspect_positive_rect))
+        self.wait(5)
         self.play(Write(aspect_negative), ShowCreation(aspect_negative_rect))
+        self.wait(5)
+
+        # Display de autor y tiempo
+        self.play(ShowCreation(author), Write(author_txt))
         self.wait()
+        self.play(ShowCreation(time), Write(time_txt))
+        self.wait(2)
         
         self.play(Restore(saved_frame))
 
@@ -603,7 +606,7 @@ class MainPresentation(NetworkScene, MovingCameraScene):
         )
 
         self.play(Write(sentiment), GrowArrow(sentiment_arrow))
-        self.wait()
+        self.wait(3)
 
         self.play(Write(absa), ShowCreation(rects[2]))
         self.wait(2)
@@ -638,10 +641,10 @@ class MainPresentation(NetworkScene, MovingCameraScene):
         time_brace = Brace(opinion[10], UP, buff = SMALL_BUFF)
 
         entity_text = entity_brace.get_text("objeto de estudio")
-        aspect_text = aspect_brace.get_text("caracteristica del objeto")
+        aspect_text = aspect_brace.get_text("características del objeto")
 
-        polarity_text = polarity_brace.get_text("valoracion del autor")
-        holder_text = holder_brace.get_text("el que expresa la opinion")
+        polarity_text = polarity_brace.get_text("valoración del autor")
+        holder_text = holder_brace.get_text("el que expresa la opinión")
         time_text = time_brace.get_text(r"tiempo de ingreso \\ al sistema")
 
         self.play(
@@ -649,33 +652,33 @@ class MainPresentation(NetworkScene, MovingCameraScene):
             GrowFromCenter(entity_brace),
             FadeIn(entity_text),
             )
-        self.wait()
+        self.wait(1)
 
         self.play(
             opinion[3].set_color, GOLD,
         	ReplacementTransform(entity_brace,aspect_brace),
         	ReplacementTransform(entity_text,aspect_text)
         	)
-        self.wait()
+        self.wait(2)
 
         self.play(
             opinion[5].set_color, GREEN,
         	ReplacementTransform(aspect_brace,polarity_brace),
         	ReplacementTransform(aspect_text,polarity_text)
         	)
-        self.wait()
+        self.wait(2)
 
         self.play(
         	ReplacementTransform(polarity_brace,holder_brace),
         	ReplacementTransform(polarity_text,holder_text)
         	)
-        self.wait()
+        self.wait(2)
 
         self.play(
         	ReplacementTransform(holder_brace,time_brace),
         	ReplacementTransform(holder_text,time_text)
         	)
-        self.wait()
+        self.wait(2)
 
         self.play(FadeOut(time_brace), FadeOut(time_text))
         self.play(ReplacementTransform(opinion[7:], opinion[6]), run_time=1)
@@ -701,18 +704,20 @@ class MainPresentation(NetworkScene, MovingCameraScene):
         def_obj_title=TextMobject("Objetivo").scale(1.2).next_to(op_group, 5*DOWN)
         ul_def_obj_title=underline(def_obj_title, stroke_width=1)
 
-        obj_text = TextMobject("Recuperar las opiniones en los textos.").next_to(def_obj_title, 1.5*DOWN)
+        obj_text = TextMobject("Recuperar las opiniones en los textos de forma automática.").next_to(def_obj_title, 1.5*DOWN)
 
-        def_sol_title=TextMobject("Solucion Propuesta").scale(1.2).next_to(obj_text, 5.1*DOWN)
+        def_sol_title=TextMobject("Solución Propuesta").scale(1.2).next_to(obj_text, 5.1*DOWN)
         ul_def_sol_title=underline(def_sol_title, stroke_width=1)
 
-        sol_text = TextMobject('Utilizar "Metodos de ', 'Aprendizaje Automatico', '".').next_to(def_sol_title, 1.5*DOWN)
+        sol_text = TextMobject('Utilizar "Métodos de ', 'Aprendizaje Automático', '".').next_to(def_sol_title, 1.5*DOWN)
         red_text = TextMobject('En particular ', '"', 'Redes Neuronales Artificiales', '".').next_to(sol_text, 0.2*DOWN)
 
         self.play(
             Write(def_obj_title),
             GrowFromCenter(ul_def_obj_title),
         )
+        self.wait(2)
+
         self.play(Write(obj_text))
         self.play(
             Write(def_sol_title),
@@ -720,7 +725,7 @@ class MainPresentation(NetworkScene, MovingCameraScene):
         )
         self.play(Write(sol_text))
         self.play(Write(red_text))
-        self.wait()
+        self.wait(2)
 
         self.play(
             FadeOut(op_group),
@@ -728,7 +733,6 @@ class MainPresentation(NetworkScene, MovingCameraScene):
             FadeOut(ul_def_obj_title),
             FadeOut(obj_text),
         )
-        self.wait()
 
         self.def_sol_title = def_sol_title
         self.ul_def_sol_title = ul_def_sol_title
@@ -748,7 +752,7 @@ class MainPresentation(NetworkScene, MovingCameraScene):
 
     def show_words(self):
         words = VGroup(
-            TextMobject("Aprendizaje", " automatico").set_color(BLUE_C),
+            TextMobject("Aprendizaje", " Automático").set_color(BLUE_C),
             TextMobject("Red Neuronal Artificial").set_color(BLUE_D),
         )
         
@@ -779,11 +783,11 @@ class MainPresentation(NetworkScene, MovingCameraScene):
         self.play(ShowCreation(
             network_mob.edge_groups,
             lag_ratio = 0.5,
-            run_time = 2,
+            run_time = 3,
             rate_func=linear,
         ))
 
-        self.wait()
+        self.wait(3)
         # in_vect = np.random.random(self.network.sizes[0])
         # self.feed_forward(in_vect)
 
@@ -843,8 +847,9 @@ class MainPresentation(NetworkScene, MovingCameraScene):
         input_layer = layers[0]
         all_edges = VGroup(*it.chain(*network_mob.edge_groups))
         
-        self.play(ShowCreation(document), ShowCreation(document_copy))
-
+        self.play(ShowCreation(document), ShowCreation(document_copy), run_time=2)
+        self.wait(2)
+        
         edge_animation = LaggedStartMap(
             ShowCreationThenDestruction, 
             all_edges.copy().set_fill(YELLOW).set_color(YELLOW).set_stroke(width=1.8),
@@ -863,6 +868,7 @@ class MainPresentation(NetworkScene, MovingCameraScene):
         )
         self.play(layer_animation)
         self.play(edge_animation)
+        # self.wait()
 
         self.document = document
 
@@ -924,9 +930,12 @@ class MainPresentation(NetworkScene, MovingCameraScene):
             FadeOut(rect),
         )
         self.play(FadeIn(activation))
+        
         for num in 0.1, 0.97:
             change_activation(num)
             self.wait()
+        self.wait(2)
+
         self.play(
             neuron.restore,
             neuron.set_fill, None, 1,
@@ -979,8 +988,9 @@ class MainPresentation(NetworkScene, MovingCameraScene):
         line = self.document[1][-1]
         signature.next_to(line, UP, SMALL_BUFF)
         self.play(Write(signature))
+        self.wait(2)
 
-        absa=TextMobject("Analisis de sentimientos basado en aspectos").to_corner(UP)
+        absa=TextMobject("Análisis de sentimientos basado en aspectos").to_corner(UP)
         absa_ul=underline(absa, stroke_width=1)
 
         self.play(
@@ -989,8 +999,7 @@ class MainPresentation(NetworkScene, MovingCameraScene):
             FadeOut(word),
         ) 
 
-
-        self.wait(2)
+        self.wait(4)
         self.learning_word = word
 
     def show_benefit(self):
@@ -1004,7 +1013,7 @@ class MainPresentation(NetworkScene, MovingCameraScene):
             TextMobject("$\\bullet$ Facilita el conocimiento de los usuarios de una empresa."),
             TextMobject("$\\bullet$ Desarrollar estrategias atraer nuevos clientes."),
             TextMobject("$\\bullet$ Herramientas visuales."),
-            TextMobject("$\\bullet$ Metodo para realizar encuestas rapidas."),
+            TextMobject("$\\bullet$ Método para realizar encuestas rápidas."),
             TextMobject("$\\bullet$ Marketing personalizado: Ofrecer productos para audiencias específicas."),
             ).arrange_submobjects(DOWN,aligned_edge=LEFT)
 
@@ -1013,13 +1022,15 @@ class MainPresentation(NetworkScene, MovingCameraScene):
 
         self.play(Write(titulo),GrowFromCenter(ul))
         self.play(LaggedStart(Write(lista)))
-        self.wait(2)
+        self.wait(9)
         self.play(
             FadeOut(titulo),
             FadeOut(ul),
             FadeOut(lista),
             run_time=1,
         )
+        self.wait()
+        
 
     def show_end(self):
         confetti_spirils = self.confetti_spirils = list(map(
@@ -1028,7 +1039,7 @@ class MainPresentation(NetworkScene, MovingCameraScene):
         ))
         self.add(*confetti_spirils)
         self.play(ShowCreation(TextMobject("¡Muchas Gracias!").scale(1.5)), run_time=2)
-        self.wait(2)
+        self.wait(3)
 
 
 def get_cursive_name(name):
